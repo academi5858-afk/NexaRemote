@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Nexa Remote</string>
+    <string name="accessibility_service_description">Allow virtual touch while an authorized Nexa Remote screen-sharing session is active</string>
+</resources>

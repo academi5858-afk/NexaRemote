@@ -1,0 +1,17 @@
+name: Nexa Remote release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['nexa-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  upstream-build:
+    uses: ./.github/workflows/flutter-build.yml
+    with:
+      upload-artifact: true
+      upload-tag: ${{ github.ref_name }}
+
