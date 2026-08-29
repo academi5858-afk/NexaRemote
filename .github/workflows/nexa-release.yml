@@ -6,7 +6,8 @@ on:
     tags: ['nexa-v*']
 
 permissions:
-  contents: read
+  # The Android job publishes the unsigned APK to the tagged GitHub release.
+  contents: write
 
 jobs:
   upstream-build:
