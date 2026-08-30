@@ -1169,8 +1169,15 @@ class NexaCompactKeyboard extends StatefulWidget {
 class _NexaCompactKeyboardState extends State<NexaCompactKeyboard> {
   bool _shift = false;
   bool _symbols = false;
+  final TextEditingController _sendTextController = TextEditingController();
 
   InputModel get inputModel => gFFI.inputModel;
+
+  @override
+  void dispose() {
+    _sendTextController.dispose();
+    super.dispose();
+  }
 
   void _sendText(String text) {
     if (text.isEmpty) return;
@@ -1182,6 +1189,13 @@ class _NexaCompactKeyboardState extends State<NexaCompactKeyboard> {
 
   void _sendKey(String key) {
     inputModel.inputKey(key);
+  }
+
+  void _sendTypedText() {
+    final text = _sendTextController.text;
+    if (text.isEmpty) return;
+    bind.sessionInputString(sessionId: gFFI.sessionId, value: text);
+    _sendTextController.clear();
   }
 
   Widget _key(String label,
@@ -1279,6 +1293,51 @@ class _NexaCompactKeyboardState extends State<NexaCompactKeyboard> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 40,
+                          child: TextField(
+                            controller: _sendTextController,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            textInputAction: TextInputAction.send,
+                            decoration: InputDecoration(
+                              hintText: translate('Send text'),
+                              filled: true,
+                              fillColor: Colors.white,
+                              contentPadding:
+                                  EdgeInsets.symmetric(horizontal: 10),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(5),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSubmitted: (_) => _sendTypedText(),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      SizedBox(
+                        height: 40,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: MyTheme.accent,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(horizontal: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5)),
+                          ),
+                          onPressed: _sendTypedText,
+                          child: Text(translate('Send')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 _row([
                   _key(_symbols ? 'ABC' : '123',
                       flex: 2,
