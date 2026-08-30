@@ -111,13 +111,21 @@ class _FileManagerPageState extends State<FileManagerPage> {
     final files = await ImagePicker().pickMultiImage();
     if (files.isEmpty) return;
 
+    final tempDir = await Directory.systemTemp.createTemp('nexa_photos_');
     final selected = SelectedItems(isLocal: true);
     for (final file in files) {
-      final localFile = File(file.path);
+      final safeName =
+          file.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+      final name = safeName.isEmpty
+          ? 'photo_${DateTime.now().millisecondsSinceEpoch}.jpg'
+          : safeName;
+      final localPath = '${tempDir.path}${Platform.pathSeparator}$name';
+      await file.saveTo(localPath);
+      final localFile = File(localPath);
       final entry = Entry()
         ..entryType = 4
-        ..name = file.name
-        ..path = file.path
+        ..name = name
+        ..path = localPath
         ..size = await localFile.length()
         ..modifiedTime =
             (await localFile.lastModified()).millisecondsSinceEpoch ~/ 1000;
@@ -129,25 +137,36 @@ class _FileManagerPageState extends State<FileManagerPage> {
     showToast(translate('Transfer file'));
   }
 
+  void closeFileTransfer() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      clientClose(gFFI.sessionId, gFFI);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => WillPopScope(
       onWillPop: () async {
         if (selectMode.value != SelectMode.none) {
           selectMode.value = SelectMode.none;
           setState(() {});
-        } else {
+        } else if (currentFileController.history.isNotEmpty) {
           currentFileController.goBack();
+        } else {
+          closeFileTransfer();
         }
         return false;
       },
       child: Scaffold(
         // backgroundColor: MyTheme.grayBg,
         appBar: AppBar(
-          leading: Row(children: [
-            IconButton(
-                icon: Icon(Icons.close),
-                onPressed: () => clientClose(gFFI.sessionId, gFFI)),
-          ]),
+          leadingWidth: 56,
+          leading: IconButton(
+            tooltip: translate('Close'),
+            icon: Icon(Icons.close),
+            onPressed: closeFileTransfer,
+          ),
           centerTitle: true,
           title: ToggleSwitch(
             initialLabelIndex: showLocal ? 0 : 1,
