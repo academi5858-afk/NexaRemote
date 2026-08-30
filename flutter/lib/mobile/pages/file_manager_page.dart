@@ -206,7 +206,7 @@ class _FileManagerPageState extends State<FileManagerPage> {
             minWidth: 100,
             fontSize: 15,
             iconSize: 18,
-            labels: [translate("Local"), translate("Remote")],
+            labels: [translate("Phone"), translate("PC")],
             icons: [Icons.phone_android_sharp, Icons.screen_share],
             onToggle: (index) {
               final current = showLocal ? 0 : 1;
@@ -252,125 +252,11 @@ class _FileManagerPageState extends State<FileManagerPage> {
                 );
               },
             ),
-            PopupMenuButton<String>(
-                tooltip: "",
-                icon: Icon(Icons.more_vert),
-                itemBuilder: (context) {
-                  return [
-                    PopupMenuItem(
-                      child: Row(
-                        children: [
-                          Icon(Icons.refresh,
-                              color: Theme.of(context).iconTheme.color),
-                          SizedBox(width: 5),
-                          Text(translate("Refresh File"))
-                        ],
-                      ),
-                      value: "refresh",
-                    ),
-                    PopupMenuItem(
-                      enabled: currentDir.path != "/",
-                      child: Row(
-                        children: [
-                          Icon(Icons.check,
-                              color: Theme.of(context).iconTheme.color),
-                          SizedBox(width: 5),
-                          Text(translate("Multi Select"))
-                        ],
-                      ),
-                      value: "select",
-                    ),
-                    PopupMenuItem(
-                      enabled: currentDir.path != "/",
-                      child: Row(
-                        children: [
-                          Icon(Icons.folder_outlined,
-                              color: Theme.of(context).iconTheme.color),
-                          SizedBox(width: 5),
-                          Text(translate("Create Folder"))
-                        ],
-                      ),
-                      value: "folder",
-                    ),
-                    PopupMenuItem(
-                      enabled: currentDir.path != "/",
-                      child: Row(
-                        children: [
-                          Icon(
-                              currentOptions.showHidden
-                                  ? Icons.check_box_outlined
-                                  : Icons.check_box_outline_blank,
-                              color: Theme.of(context).iconTheme.color),
-                          SizedBox(width: 5),
-                          Text(translate("Show Hidden Files"))
-                        ],
-                      ),
-                      value: "hidden",
-                    )
-                  ];
-                },
-                onSelected: (v) {
-                  if (v == "refresh") {
-                    currentFileController.refresh();
-                  } else if (v == "select") {
-                    model.localController.selectedItems.clear();
-                    model.remoteController.selectedItems.clear();
-                    selectMode.toggle(showLocal);
-                    setState(() {});
-                  } else if (v == "folder") {
-                    final name = TextEditingController();
-                    String? errorText;
-                    gFFI.dialogManager.show((setState, close, context) {
-                      name.addListener(() {
-                        if (errorText != null) {
-                          setState(() {
-                            errorText = null;
-                          });
-                        }
-                      });
-                      return CustomAlertDialog(
-                          title: Text(translate("Create Folder")),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TextFormField(
-                                decoration: InputDecoration(
-                                  labelText:
-                                      translate("Please enter the folder name"),
-                                  errorText: errorText,
-                                ),
-                                controller: name,
-                              ).workaroundFreezeLinuxMint(),
-                            ],
-                          ),
-                          actions: [
-                            dialogButton("Cancel",
-                                onPressed: () => close(false), isOutline: true),
-                            dialogButton("OK", onPressed: () {
-                              if (name.value.text.isNotEmpty) {
-                                if (!PathUtil.validName(
-                                    name.value.text,
-                                    currentFileController
-                                        .options.value.isWindows)) {
-                                  setState(() {
-                                    errorText =
-                                        translate("Invalid folder name");
-                                  });
-                                  return;
-                                }
-                                currentFileController.createDir(PathUtil.join(
-                                    currentDir.path,
-                                    name.value.text,
-                                    currentOptions.isWindows));
-                                close();
-                              }
-                            })
-                          ]);
-                    });
-                  } else if (v == "hidden") {
-                    currentFileController.toggleShowHidden();
-                  }
-                }),
+            IconButton(
+              tooltip: translate('Refresh'),
+              icon: Icon(Icons.refresh),
+              onPressed: currentFileController.refresh,
+            ),
           ],
         ),
         body: showLocal
@@ -549,6 +435,40 @@ class _FileManagerViewState extends State<FileManagerView> {
   FileController get controller => widget.controller;
   SelectedItems get _selectedItems => widget.controller.selectedItems;
 
+  bool isPicture(Entry entry) {
+    if (!entry.isFile) return false;
+    final name = entry.name.toLowerCase();
+    return name.endsWith('.jpg') ||
+        name.endsWith('.jpeg') ||
+        name.endsWith('.png') ||
+        name.endsWith('.gif') ||
+        name.endsWith('.webp') ||
+        name.endsWith('.bmp') ||
+        name.endsWith('.heic') ||
+        name.endsWith('.heif');
+  }
+
+  DirectoryData? getPhoneDestination() {
+    final localController = gFFI.fileModel.localController;
+    final path = localController.homePath.isNotEmpty
+        ? localController.homePath
+        : localController.directory.value.path;
+    if (path.isEmpty) return null;
+    final directory = FileDirectory()..path = path;
+    return DirectoryData(directory, localController.options.value);
+  }
+
+  void downloadPictureToPhone(Entry entry) {
+    final destination = getPhoneDestination();
+    if (destination == null) {
+      showToast(translate('Phone folder is not ready'));
+      return;
+    }
+    final selected = SelectedItems(isLocal: false)..add(entry);
+    gFFI.fileModel.remoteController.sendFiles(selected, destination);
+    showToast(translate('Transfer file'));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -560,7 +480,10 @@ class _FileManagerViewState extends State<FileManagerView> {
     return Column(children: [
       headTools(),
       Expanded(child: Obx(() {
-        final entries = controller.directory.value.entries;
+        final entries = controller.directory.value.entries
+            .where((entry) =>
+                entry.isDirectory || entry.isDrive || isPicture(entry))
+            .toList();
         return ListView.builder(
           controller: _listScrollController,
           itemCount: entries.length + 1,
@@ -620,48 +543,7 @@ class _FileManagerViewState extends State<FileManagerView> {
                               }
                               setState(() {});
                             })
-                        : PopupMenuButton<String>(
-                            tooltip: "",
-                            icon: Icon(Icons.more_vert),
-                            itemBuilder: (context) {
-                              return [
-                                PopupMenuItem(
-                                  child: Text(translate("Delete")),
-                                  value: "delete",
-                                ),
-                                PopupMenuItem(
-                                  child: Text(translate("Multi Select")),
-                                  value: "multi_select",
-                                ),
-                                PopupMenuItem(
-                                  child: Text(translate("Properties")),
-                                  value: "properties",
-                                  enabled: false,
-                                ),
-                                if (!entries[index].isDrive &&
-                                    versionCmp(gFFI.ffiModel.pi.version,
-                                            "1.3.0") >=
-                                        0)
-                                  PopupMenuItem(
-                                    child: Text(translate("Rename")),
-                                    value: "rename",
-                                  )
-                              ];
-                            },
-                            onSelected: (v) {
-                              if (v == "delete") {
-                                final items = SelectedItems(isLocal: isLocal);
-                                items.add(entries[index]);
-                                controller.removeAction(items);
-                              } else if (v == "multi_select") {
-                                _selectedItems.clear();
-                                widget.selectMode.toggle(isLocal);
-                                setState(() {});
-                              } else if (v == "rename") {
-                                controller.renameAction(
-                                    entries[index], isLocal);
-                              }
-                            }),
+                        : null,
                 onTap: () {
                   if (showCheckBox) {
                     if (selected) {
@@ -674,20 +556,13 @@ class _FileManagerViewState extends State<FileManagerView> {
                   }
                   if (entries[index].isDirectory || entries[index].isDrive) {
                     controller.openDirectory(entries[index].path);
+                  } else if (!isLocal && isPicture(entries[index])) {
+                    downloadPictureToPhone(entries[index]);
                   } else {
                     // Perform file-related tasks.
                   }
                 },
-                onLongPress: entries[index].isDrive
-                    ? null
-                    : () {
-                        _selectedItems.clear();
-                        widget.selectMode.toggle(isLocal);
-                        if (widget.selectMode.value != SelectMode.none) {
-                          _selectedItems.add(entries[index]);
-                        }
-                        setState(() {});
-                      },
+                onLongPress: null,
               ),
             );
           },

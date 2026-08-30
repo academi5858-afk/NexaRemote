@@ -597,7 +597,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               ),
                               IconButton(
                                 color: Colors.white,
-                                icon: Icon(Icons.folder),
+                                icon: Icon(Icons.photo_library),
                                 onPressed: openFileTransfer,
                               ),
                               IconButton(
@@ -625,7 +625,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               ),
                               IconButton(
                                 color: Colors.white,
-                                icon: Icon(Icons.folder),
+                                icon: Icon(Icons.photo_library),
                                 onPressed: openFileTransfer,
                               ),
                               IconButton(
