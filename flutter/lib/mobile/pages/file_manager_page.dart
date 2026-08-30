@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
 import 'package:flutter_hbb/models/file_model.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
 import '../../common.dart';
@@ -100,6 +102,33 @@ class _FileManagerPageState extends State<FileManagerPage> {
     super.dispose();
   }
 
+  Future<void> pickAndSendPhotos() async {
+    final remoteDir = model.remoteController.directory.value;
+    if (remoteDir.path.isEmpty) {
+      showToast(translate('Remote folder is not ready'));
+      return;
+    }
+    final files = await ImagePicker().pickMultiImage();
+    if (files.isEmpty) return;
+
+    final selected = SelectedItems(isLocal: true);
+    for (final file in files) {
+      final localFile = File(file.path);
+      final entry = Entry()
+        ..entryType = 4
+        ..name = file.name
+        ..path = file.path
+        ..size = await localFile.length()
+        ..modifiedTime =
+            (await localFile.lastModified()).millisecondsSinceEpoch ~/ 1000;
+      selected.add(entry);
+    }
+
+    await model.localController
+        .sendFiles(selected, model.remoteController.directoryData());
+    showToast(translate('Transfer file'));
+  }
+
   @override
   Widget build(BuildContext context) => WillPopScope(
       onWillPop: () async {
@@ -143,6 +172,11 @@ class _FileManagerPageState extends State<FileManagerPage> {
             },
           ),
           actions: [
+            IconButton(
+              tooltip: translate('Photos'),
+              icon: Icon(Icons.photo_library_outlined),
+              onPressed: pickAndSendPhotos,
+            ),
             PopupMenuButton<String>(
                 tooltip: "",
                 icon: Icon(Icons.more_vert),
