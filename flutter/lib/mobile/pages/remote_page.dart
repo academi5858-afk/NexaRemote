@@ -387,107 +387,6 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     _physicalFocusNode.requestFocus();
   }
 
-  bool get _peerIsMac => gFFI.ffiModel.pi.platform == kPeerPlatformMacOS;
-
-  void selectAllRemoteText() {
-    sendPrompt(_peerIsMac, 'VK_A');
-    _physicalFocusNode.requestFocus();
-  }
-
-  void copySelectedRemoteText() {
-    sendPrompt(_peerIsMac, 'VK_C');
-    Future.delayed(Duration(milliseconds: 300), trySyncClipboard);
-    showToast(translate('Copied selected text'));
-    _physicalFocusNode.requestFocus();
-  }
-
-  void extendRemoteTextSelection(String key) {
-    final oldShift = inputModel.shift;
-    inputModel.shift = true;
-    inputModel.inputKey(key);
-    inputModel.shift = oldShift;
-    _physicalFocusNode.requestFocus();
-  }
-
-  Future<void> pastePhoneClipboardToRemote() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text ?? '';
-    if (text.isEmpty) {
-      showToast(translate('Clipboard is empty'));
-      return;
-    }
-    bind.sessionInputString(sessionId: sessionId, value: text);
-    _physicalFocusNode.requestFocus();
-  }
-
-  void showCopyPasteDialog() {
-    gFFI.dialogManager.show((setState, close, context) {
-      Widget item(IconData icon, String label, VoidCallback onTap) {
-        return ListTile(
-          leading: Icon(icon),
-          title: Text(translate(label)),
-          onTap: () {
-            close();
-            onTap();
-          },
-        );
-      }
-
-      Widget selectButton(IconData icon, String label, String key) {
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: OutlinedButton.icon(
-              icon: Icon(icon),
-              label: Text(translate(label)),
-              onPressed: () => extendRemoteTextSelection(key),
-            ),
-          ),
-        );
-      }
-
-      return CustomAlertDialog(
-        title: Text(translate('Select, copy, paste')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                translate(
-                    'Tap inside the PC text first, then use these buttons to choose text.'),
-              ),
-            ),
-            Row(
-              children: [
-                selectButton(
-                    Icons.keyboard_arrow_left, 'Select left', 'VK_LEFT'),
-                selectButton(
-                    Icons.keyboard_arrow_right, 'Select right', 'VK_RIGHT'),
-              ],
-            ),
-            Row(
-              children: [
-                selectButton(Icons.keyboard_arrow_up, 'Select up', 'VK_UP'),
-                selectButton(
-                    Icons.keyboard_arrow_down, 'Select down', 'VK_DOWN'),
-              ],
-            ),
-            item(Icons.select_all, 'Select all PC text', selectAllRemoteText),
-            item(Icons.content_copy, 'Copy selected PC text',
-                copySelectedRemoteText),
-            item(Icons.content_paste, 'Paste phone clipboard to PC',
-                pastePhoneClipboardToRemote),
-            item(Icons.text_fields, 'Send text', showSendTextDialog),
-          ],
-        ),
-        actions: [
-          dialogButton('Cancel', onPressed: close, isOutline: true),
-        ],
-      );
-    }, clickMaskDismiss: true, backDismiss: true);
-  }
-
   void showSendTextDialog() {
     final controller = TextEditingController();
     gFFI.invokeMethod("enable_soft_keyboard", true);
@@ -688,8 +587,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               ),
                               IconButton(
                                 color: Colors.white,
-                                icon: Icon(Icons.edit_note),
-                                onPressed: showCopyPasteDialog,
+                                icon: Icon(Icons.text_fields),
+                                onPressed: showSendTextDialog,
                               ),
                               IconButton(
                                 color: Colors.white,
@@ -716,8 +615,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               ),
                               IconButton(
                                 color: Colors.white,
-                                icon: Icon(Icons.edit_note),
-                                onPressed: showCopyPasteDialog,
+                                icon: Icon(Icons.text_fields),
+                                onPressed: showSendTextDialog,
                               ),
                               IconButton(
                                 color: Colors.white,

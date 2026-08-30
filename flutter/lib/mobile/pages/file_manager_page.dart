@@ -104,11 +104,10 @@ class _FileManagerPageState extends State<FileManagerPage> {
 
   Future<void> pickAndSendPhotos({
     required ImageSource source,
-    required bool sendToDesktop,
   }) async {
-    final remoteReady = await ensureRemoteFolderReady(sendToDesktop);
-    if (!remoteReady) {
-      showToast(translate('Remote folder is not ready'));
+    final destination = await getRemoteDesktopDestination();
+    if (destination == null) {
+      showToast(translate('PC Desktop is not ready'));
       return;
     }
     final picker = ImagePicker();
@@ -141,44 +140,26 @@ class _FileManagerPageState extends State<FileManagerPage> {
       selected.add(entry);
     }
 
-    await model.localController
-        .sendFiles(selected, model.remoteController.directoryData());
+    await model.localController.sendFiles(selected, destination);
     showToast(translate('Transfer file'));
   }
 
-  Future<bool> ensureRemoteFolderReady(bool useDesktop) async {
-    if (showLocal) {
-      setState(() => showLocal = false);
-      await Future.delayed(Duration(milliseconds: 250));
-    }
-
+  Future<DirectoryData?> getRemoteDesktopDestination() async {
     final remoteController = model.remoteController;
-    for (var i = 0; i < 6; i++) {
-      if (remoteController.directory.value.path.isNotEmpty) {
-        if (!useDesktop) return true;
-        final desktopReady = await openRemoteDesktopFolder();
-        if (desktopReady) return true;
-      }
+    for (var i = 0; i < 6 && remoteController.homePath.isEmpty; i++) {
       if (i == 0) {
         remoteController.goToHomeDirectory();
-      } else {
-        await remoteController.refresh();
       }
       await Future.delayed(Duration(milliseconds: 500));
     }
-    return remoteController.directory.value.path.isNotEmpty;
-  }
 
-  Future<bool> openRemoteDesktopFolder() async {
-    final remoteController = model.remoteController;
     final home = remoteController.homePath;
-    if (home.isEmpty) return false;
+    if (home.isEmpty) return null;
 
     final desktop = PathUtil.join(
         home, 'Desktop', remoteController.options.value.isWindows);
-    await remoteController.openDirectory(desktop);
-    await Future.delayed(Duration(milliseconds: 500));
-    return remoteController.directory.value.path == desktop;
+    final directory = FileDirectory()..path = desktop;
+    return DirectoryData(directory, remoteController.options.value);
   }
 
   void closeFileTransfer() {
@@ -262,36 +243,12 @@ class _FileManagerPageState extends State<FileManagerPage> {
                       ],
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'gallery_current',
-                    child: Row(
-                      children: [
-                        Icon(Icons.folder_copy_outlined,
-                            color: Theme.of(context).iconTheme.color),
-                        SizedBox(width: 5),
-                        Text(translate('Choose photos to current PC folder'))
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'camera_current',
-                    child: Row(
-                      children: [
-                        Icon(Icons.add_a_photo_outlined,
-                            color: Theme.of(context).iconTheme.color),
-                        SizedBox(width: 5),
-                        Text(translate('Take photo to current PC folder'))
-                      ],
-                    ),
-                  ),
                 ];
               },
               onSelected: (value) {
                 final useCamera = value.startsWith('camera');
-                final sendToDesktop = value.endsWith('desktop');
                 pickAndSendPhotos(
                   source: useCamera ? ImageSource.camera : ImageSource.gallery,
-                  sendToDesktop: sendToDesktop,
                 );
               },
             ),
