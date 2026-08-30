@@ -551,8 +551,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
   Widget getBottomAppBar() {
     final ffiModel = Provider.of<FfiModel>(context);
-    Widget menuItem(IconData icon, String label, String value) {
-      return PopupMenuItem(
+    PopupMenuEntry<String> menuItem(IconData icon, String label, String value) {
+      return PopupMenuItem<String>(
         value: value,
         child: Row(children: [
           Icon(icon, color: Theme.of(context).iconTheme.color),
