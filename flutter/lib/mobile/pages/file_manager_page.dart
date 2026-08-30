@@ -1,11 +1,8 @@
 import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
 import 'package:flutter_hbb/models/file_model.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
 import '../../common.dart';
@@ -102,66 +99,6 @@ class _FileManagerPageState extends State<FileManagerPage> {
     super.dispose();
   }
 
-  Future<void> pickAndSendPhotos({
-    required ImageSource source,
-  }) async {
-    final destination = await getRemoteDesktopDestination();
-    if (destination == null) {
-      showToast(translate('PC Desktop is not ready'));
-      return;
-    }
-    final picker = ImagePicker();
-    final XFile? cameraPhoto = source == ImageSource.camera
-        ? await picker.pickImage(source: ImageSource.camera)
-        : null;
-    final files = source == ImageSource.camera
-        ? [if (cameraPhoto != null) cameraPhoto]
-        : await picker.pickMultiImage();
-    if (files.isEmpty) return;
-
-    final tempDir = await Directory.systemTemp.createTemp('nexa_photos_');
-    final selected = SelectedItems(isLocal: true);
-    for (final file in files) {
-      final safeName =
-          file.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
-      final name = safeName.isEmpty
-          ? 'photo_${DateTime.now().millisecondsSinceEpoch}.jpg'
-          : safeName;
-      final localPath = '${tempDir.path}${Platform.pathSeparator}$name';
-      await file.saveTo(localPath);
-      final localFile = File(localPath);
-      final entry = Entry()
-        ..entryType = 4
-        ..name = name
-        ..path = localPath
-        ..size = await localFile.length()
-        ..modifiedTime =
-            (await localFile.lastModified()).millisecondsSinceEpoch ~/ 1000;
-      selected.add(entry);
-    }
-
-    await model.localController.sendFiles(selected, destination);
-    showToast(translate('Transfer file'));
-  }
-
-  Future<DirectoryData?> getRemoteDesktopDestination() async {
-    final remoteController = model.remoteController;
-    for (var i = 0; i < 6 && remoteController.homePath.isEmpty; i++) {
-      if (i == 0) {
-        remoteController.goToHomeDirectory();
-      }
-      await Future.delayed(Duration(milliseconds: 500));
-    }
-
-    final home = remoteController.homePath;
-    if (home.isEmpty) return null;
-
-    final desktop = PathUtil.join(
-        home, 'Desktop', remoteController.options.value.isWindows);
-    final directory = FileDirectory()..path = desktop;
-    return DirectoryData(directory, remoteController.options.value);
-  }
-
   void closeFileTransfer() {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -216,46 +153,10 @@ class _FileManagerPageState extends State<FileManagerPage> {
             },
           ),
           actions: [
-            PopupMenuButton<String>(
-              tooltip: translate('Photos'),
-              icon: Icon(Icons.add_photo_alternate_outlined),
-              itemBuilder: (context) {
-                return [
-                  PopupMenuItem(
-                    value: 'gallery_desktop',
-                    child: Row(
-                      children: [
-                        Icon(Icons.photo_library_outlined,
-                            color: Theme.of(context).iconTheme.color),
-                        SizedBox(width: 5),
-                        Text(translate('Choose photos to PC Desktop'))
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'camera_desktop',
-                    child: Row(
-                      children: [
-                        Icon(Icons.photo_camera_outlined,
-                            color: Theme.of(context).iconTheme.color),
-                        SizedBox(width: 5),
-                        Text(translate('Take photo to PC Desktop'))
-                      ],
-                    ),
-                  ),
-                ];
-              },
-              onSelected: (value) {
-                final useCamera = value.startsWith('camera');
-                pickAndSendPhotos(
-                  source: useCamera ? ImageSource.camera : ImageSource.gallery,
-                );
-              },
-            ),
             IconButton(
               tooltip: translate('Refresh'),
               icon: Icon(Icons.refresh),
-              onPressed: currentFileController.refresh,
+              onPressed: () => currentFileController.refresh(),
             ),
           ],
         ),
@@ -435,40 +336,6 @@ class _FileManagerViewState extends State<FileManagerView> {
   FileController get controller => widget.controller;
   SelectedItems get _selectedItems => widget.controller.selectedItems;
 
-  bool isPicture(Entry entry) {
-    if (!entry.isFile) return false;
-    final name = entry.name.toLowerCase();
-    return name.endsWith('.jpg') ||
-        name.endsWith('.jpeg') ||
-        name.endsWith('.png') ||
-        name.endsWith('.gif') ||
-        name.endsWith('.webp') ||
-        name.endsWith('.bmp') ||
-        name.endsWith('.heic') ||
-        name.endsWith('.heif');
-  }
-
-  DirectoryData? getPhoneDestination() {
-    final localController = gFFI.fileModel.localController;
-    final path = localController.homePath.isNotEmpty
-        ? localController.homePath
-        : localController.directory.value.path;
-    if (path.isEmpty) return null;
-    final directory = FileDirectory()..path = path;
-    return DirectoryData(directory, localController.options.value);
-  }
-
-  void downloadPictureToPhone(Entry entry) {
-    final destination = getPhoneDestination();
-    if (destination == null) {
-      showToast(translate('Phone folder is not ready'));
-      return;
-    }
-    final selected = SelectedItems(isLocal: false)..add(entry);
-    gFFI.fileModel.remoteController.sendFiles(selected, destination);
-    showToast(translate('Transfer file'));
-  }
-
   @override
   void initState() {
     super.initState();
@@ -480,10 +347,7 @@ class _FileManagerViewState extends State<FileManagerView> {
     return Column(children: [
       headTools(),
       Expanded(child: Obx(() {
-        final entries = controller.directory.value.entries
-            .where((entry) =>
-                entry.isDirectory || entry.isDrive || isPicture(entry))
-            .toList();
+        final entries = controller.directory.value.entries;
         return ListView.builder(
           controller: _listScrollController,
           itemCount: entries.length + 1,
@@ -556,8 +420,6 @@ class _FileManagerViewState extends State<FileManagerView> {
                   }
                   if (entries[index].isDirectory || entries[index].isDrive) {
                     controller.openDirectory(entries[index].path);
-                  } else if (!isLocal && isPicture(entries[index])) {
-                    downloadPictureToPhone(entries[index]);
                   } else {
                     // Perform file-related tasks.
                   }

@@ -562,10 +562,10 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
       );
     }
 
-    Widget wheel(IconData icon, List<PopupMenuEntry<String>> items,
+    Widget quickButton(IconData icon, List<PopupMenuEntry<String>> items,
         ValueChanged<String> onSelected) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Material(
           color: MyTheme.accent,
           shape: CircleBorder(),
@@ -584,56 +584,38 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     return SafeArea(
       top: false,
       child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            wheel(Icons.edit, [
-              if (canType)
-                menuItem(Icons.keyboard, 'Android keyboard', 'keyboard'),
-              if (canType)
-                menuItem(Icons.text_fields, 'Send text', 'send_text'),
-              if (canType) menuItem(Icons.keyboard_return, 'Enter', 'enter'),
-              if (canType)
-                menuItem(
-                    gFFI.ffiModel.touchMode ? Icons.touch_app : Icons.mouse,
-                    gFFI.ffiModel.touchMode ? 'Touch mode' : 'Mouse mode',
-                    'pointer'),
-              menuItem(Icons.tv, 'View options', 'view_options'),
-              menuItem(Icons.more_vert, 'More', 'more'),
-              menuItem(Icons.close, 'Disconnect', 'disconnect'),
-            ], (value) {
-              if (value == 'keyboard') {
-                openKeyboard();
-              } else if (value == 'send_text') {
-                showSendTextDialog();
-              } else if (value == 'enter') {
-                sendEnterKey();
-              } else if (value == 'pointer') {
-                setState(() => _showGestureHelp = !_showGestureHelp);
-              } else if (value == 'view_options') {
-                setState(() => _showEdit = false);
-                showOptions(context, widget.id, gFFI.dialogManager);
-              } else if (value == 'more') {
-                setState(() => _showEdit = false);
-                showActions(widget.id);
-              } else if (value == 'disconnect') {
-                clientClose(sessionId, gFFI);
-              }
-            }),
-            wheel(Icons.photo_library, [
-              menuItem(
-                  Icons.photo_library_outlined, 'Picture transfer', 'pictures'),
-              menuItem(Icons.expand_more, 'Hide buttons', 'hide'),
-            ], (value) {
-              if (value == 'pictures') {
-                openFileTransfer();
-              } else if (value == 'hide') {
-                setState(() => _showBar = false);
-              }
-            }),
-          ],
-        ),
+        alignment: Alignment.bottomRight,
+        child: quickButton(Icons.edit, [
+          if (canType) menuItem(Icons.keyboard, 'Android keyboard', 'keyboard'),
+          if (canType) menuItem(Icons.text_fields, 'Send text', 'send_text'),
+          if (canType) menuItem(Icons.keyboard_return, 'Enter', 'enter'),
+          if (canType)
+            menuItem(
+                gFFI.ffiModel.touchMode ? Icons.touch_app : Icons.mouse,
+                gFFI.ffiModel.touchMode ? 'Touch mode' : 'Mouse mode',
+                'pointer'),
+          menuItem(Icons.tv, 'View options', 'view_options'),
+          menuItem(Icons.more_vert, 'More', 'more'),
+          menuItem(Icons.expand_more, 'Hide buttons', 'hide'),
+        ], (value) {
+          if (value == 'keyboard') {
+            openKeyboard();
+          } else if (value == 'send_text') {
+            showSendTextDialog();
+          } else if (value == 'enter') {
+            sendEnterKey();
+          } else if (value == 'pointer') {
+            setState(() => _showGestureHelp = !_showGestureHelp);
+          } else if (value == 'view_options') {
+            setState(() => _showEdit = false);
+            showOptions(context, widget.id, gFFI.dialogManager);
+          } else if (value == 'more') {
+            setState(() => _showEdit = false);
+            showActions(widget.id);
+          } else if (value == 'hide') {
+            setState(() => _showBar = false);
+          }
+        }),
       ),
     );
   }
