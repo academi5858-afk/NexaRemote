@@ -401,6 +401,14 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     _physicalFocusNode.requestFocus();
   }
 
+  void extendRemoteTextSelection(String key) {
+    final oldShift = inputModel.shift;
+    inputModel.shift = true;
+    inputModel.inputKey(key);
+    inputModel.shift = oldShift;
+    _physicalFocusNode.requestFocus();
+  }
+
   Future<void> pastePhoneClipboardToRemote() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text ?? '';
@@ -425,11 +433,46 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
         );
       }
 
+      Widget selectButton(IconData icon, String label, String key) {
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: OutlinedButton.icon(
+              icon: Icon(icon),
+              label: Text(translate(label)),
+              onPressed: () => extendRemoteTextSelection(key),
+            ),
+          ),
+        );
+      }
+
       return CustomAlertDialog(
-        title: Text(translate('Copy and paste')),
+        title: Text(translate('Select, copy, paste')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                translate(
+                    'Tap inside the PC text first, then use these buttons to choose text.'),
+              ),
+            ),
+            Row(
+              children: [
+                selectButton(
+                    Icons.keyboard_arrow_left, 'Select left', 'VK_LEFT'),
+                selectButton(
+                    Icons.keyboard_arrow_right, 'Select right', 'VK_RIGHT'),
+              ],
+            ),
+            Row(
+              children: [
+                selectButton(Icons.keyboard_arrow_up, 'Select up', 'VK_UP'),
+                selectButton(
+                    Icons.keyboard_arrow_down, 'Select down', 'VK_DOWN'),
+              ],
+            ),
             item(Icons.select_all, 'Select all PC text', selectAllRemoteText),
             item(Icons.content_copy, 'Copy selected PC text',
                 copySelectedRemoteText),
