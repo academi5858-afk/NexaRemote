@@ -102,13 +102,22 @@ class _FileManagerPageState extends State<FileManagerPage> {
     super.dispose();
   }
 
-  Future<void> pickAndSendPhotos() async {
-    final remoteReady = await ensureRemoteFolderReady();
+  Future<void> pickAndSendPhotos({
+    required ImageSource source,
+    required bool sendToDesktop,
+  }) async {
+    final remoteReady = await ensureRemoteFolderReady(sendToDesktop);
     if (!remoteReady) {
       showToast(translate('Remote folder is not ready'));
       return;
     }
-    final files = await ImagePicker().pickMultiImage();
+    final picker = ImagePicker();
+    final XFile? cameraPhoto = source == ImageSource.camera
+        ? await picker.pickImage(source: ImageSource.camera)
+        : null;
+    final files = source == ImageSource.camera
+        ? [if (cameraPhoto != null) cameraPhoto]
+        : await picker.pickMultiImage();
     if (files.isEmpty) return;
 
     final tempDir = await Directory.systemTemp.createTemp('nexa_photos_');
@@ -137,7 +146,7 @@ class _FileManagerPageState extends State<FileManagerPage> {
     showToast(translate('Transfer file'));
   }
 
-  Future<bool> ensureRemoteFolderReady() async {
+  Future<bool> ensureRemoteFolderReady(bool useDesktop) async {
     if (showLocal) {
       setState(() => showLocal = false);
       await Future.delayed(Duration(milliseconds: 250));
@@ -146,7 +155,9 @@ class _FileManagerPageState extends State<FileManagerPage> {
     final remoteController = model.remoteController;
     for (var i = 0; i < 6; i++) {
       if (remoteController.directory.value.path.isNotEmpty) {
-        return true;
+        if (!useDesktop) return true;
+        final desktopReady = await openRemoteDesktopFolder();
+        if (desktopReady) return true;
       }
       if (i == 0) {
         remoteController.goToHomeDirectory();
@@ -156,6 +167,18 @@ class _FileManagerPageState extends State<FileManagerPage> {
       await Future.delayed(Duration(milliseconds: 500));
     }
     return remoteController.directory.value.path.isNotEmpty;
+  }
+
+  Future<bool> openRemoteDesktopFolder() async {
+    final remoteController = model.remoteController;
+    final home = remoteController.homePath;
+    if (home.isEmpty) return false;
+
+    final desktop = PathUtil.join(
+        home, 'Desktop', remoteController.options.value.isWindows);
+    await remoteController.openDirectory(desktop);
+    await Future.delayed(Duration(milliseconds: 500));
+    return remoteController.directory.value.path == desktop;
   }
 
   void closeFileTransfer() {
@@ -212,10 +235,65 @@ class _FileManagerPageState extends State<FileManagerPage> {
             },
           ),
           actions: [
-            IconButton(
+            PopupMenuButton<String>(
               tooltip: translate('Photos'),
-              icon: Icon(Icons.photo_library_outlined),
-              onPressed: pickAndSendPhotos,
+              icon: Icon(Icons.add_photo_alternate_outlined),
+              itemBuilder: (context) {
+                return [
+                  PopupMenuItem(
+                    value: 'gallery_desktop',
+                    child: Row(
+                      children: [
+                        Icon(Icons.photo_library_outlined,
+                            color: Theme.of(context).iconTheme.color),
+                        SizedBox(width: 5),
+                        Text(translate('Choose photos to PC Desktop'))
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'camera_desktop',
+                    child: Row(
+                      children: [
+                        Icon(Icons.photo_camera_outlined,
+                            color: Theme.of(context).iconTheme.color),
+                        SizedBox(width: 5),
+                        Text(translate('Take photo to PC Desktop'))
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'gallery_current',
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder_copy_outlined,
+                            color: Theme.of(context).iconTheme.color),
+                        SizedBox(width: 5),
+                        Text(translate('Choose photos to current PC folder'))
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'camera_current',
+                    child: Row(
+                      children: [
+                        Icon(Icons.add_a_photo_outlined,
+                            color: Theme.of(context).iconTheme.color),
+                        SizedBox(width: 5),
+                        Text(translate('Take photo to current PC folder'))
+                      ],
+                    ),
+                  ),
+                ];
+              },
+              onSelected: (value) {
+                final useCamera = value.startsWith('camera');
+                final sendToDesktop = value.endsWith('desktop');
+                pickAndSendPhotos(
+                  source: useCamera ? ImageSource.camera : ImageSource.gallery,
+                  sendToDesktop: sendToDesktop,
+                );
+              },
             ),
             PopupMenuButton<String>(
                 tooltip: "",

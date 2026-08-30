@@ -406,8 +406,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
         content: TextField(
           controller: controller,
           autofocus: true,
-          autocorrect: false,
-          enableSuggestions: false,
+          autocorrect: true,
+          enableSuggestions: true,
           minLines: 1,
           maxLines: 4,
           textInputAction: TextInputAction.send,
