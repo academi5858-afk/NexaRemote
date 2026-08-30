@@ -379,6 +379,28 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     });
   }
 
+  void openFileTransfer() {
+    setState(() {
+      _showEdit = false;
+      _showNexaKeyboard = false;
+    });
+    gFFI.invokeMethod("enable_soft_keyboard", false);
+    _mobileFocusNode.unfocus();
+    connect(
+      context,
+      widget.id,
+      isFileTransfer: true,
+      password: widget.password,
+      isSharedPassword: widget.isSharedPassword,
+      forceRelay: widget.forceRelay == true,
+    );
+  }
+
+  void sendEnterKey() {
+    inputModel.inputKey('VK_ENTER');
+    _physicalFocusNode.requestFocus();
+  }
+
   Widget _bottomWidget() => _showGestureHelp
       ? getGestureHelp()
       : (_showBar && gFFI.ffiModel.pi.displays.isNotEmpty
@@ -540,6 +562,16 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               ),
                               IconButton(
                                 color: Colors.white,
+                                icon: Icon(Icons.folder),
+                                onPressed: openFileTransfer,
+                              ),
+                              IconButton(
+                                color: Colors.white,
+                                icon: Icon(Icons.keyboard_return),
+                                onPressed: sendEnterKey,
+                              ),
+                              IconButton(
+                                color: Colors.white,
                                 icon: const Icon(Icons.build),
                                 onPressed: () => gFFI.dialogManager
                                     .toggleMobileActionsOverlay(ffi: gFFI),
@@ -554,6 +586,16 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                                 color: Colors.white,
                                 icon: Icon(Icons.grid_on),
                                 onPressed: toggleNexaKeyboard,
+                              ),
+                              IconButton(
+                                color: Colors.white,
+                                icon: Icon(Icons.folder),
+                                onPressed: openFileTransfer,
+                              ),
+                              IconButton(
+                                color: Colors.white,
+                                icon: Icon(Icons.keyboard_return),
+                                onPressed: sendEnterKey,
                               ),
                               IconButton(
                                 color: Colors.white,
