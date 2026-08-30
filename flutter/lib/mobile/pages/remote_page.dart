@@ -401,6 +401,17 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
     _physicalFocusNode.requestFocus();
   }
 
+  Future<void> pastePhoneClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text ?? '';
+    if (text.isEmpty) {
+      showToast(translate('Clipboard is empty'));
+      return;
+    }
+    bind.sessionInputString(sessionId: sessionId, value: text);
+    _physicalFocusNode.requestFocus();
+  }
+
   Widget _bottomWidget() => _showGestureHelp
       ? getGestureHelp()
       : (_showBar && gFFI.ffiModel.pi.displays.isNotEmpty
@@ -572,6 +583,11 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               ),
                               IconButton(
                                 color: Colors.white,
+                                icon: Icon(Icons.content_paste),
+                                onPressed: pastePhoneClipboard,
+                              ),
+                              IconButton(
+                                color: Colors.white,
                                 icon: const Icon(Icons.build),
                                 onPressed: () => gFFI.dialogManager
                                     .toggleMobileActionsOverlay(ffi: gFFI),
@@ -596,6 +612,11 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                                 color: Colors.white,
                                 icon: Icon(Icons.keyboard_return),
                                 onPressed: sendEnterKey,
+                              ),
+                              IconButton(
+                                color: Colors.white,
+                                icon: Icon(Icons.content_paste),
+                                onPressed: pastePhoneClipboard,
                               ),
                               IconButton(
                                 color: Colors.white,
