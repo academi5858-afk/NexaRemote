@@ -77,6 +77,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   final FocusNode _mobileFocusNode = FocusNode();
   final FocusNode _physicalFocusNode = FocusNode();
   var _showEdit = false; // use soft keyboard
+  var _showNexaKeyboard = false;
 
   InputModel get inputModel => gFFI.inputModel;
   SessionID get sessionId => gFFI.sessionId;
@@ -347,6 +348,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
   }
 
   void openKeyboard() {
+    setState(() => _showNexaKeyboard = false);
     gFFI.invokeMethod("enable_soft_keyboard", true);
     // destroy first, so that our _value trick can work
     _value = initText;
@@ -363,6 +365,17 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
             overlays: SystemUiOverlay.values);
         _mobileFocusNode.requestFocus();
       });
+    });
+  }
+
+  void toggleNexaKeyboard() {
+    _timer?.cancel();
+    gFFI.invokeMethod("enable_soft_keyboard", false);
+    _mobileFocusNode.unfocus();
+    _physicalFocusNode.requestFocus();
+    setState(() {
+      _showEdit = false;
+      _showNexaKeyboard = !_showNexaKeyboard;
     });
   }
 
@@ -406,6 +419,8 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                         gFFI.invokeMethod("enable_soft_keyboard", false);
                         _mobileFocusNode.unfocus();
                         _physicalFocusNode.requestFocus();
+                      } else if (_showNexaKeyboard) {
+                        _showNexaKeyboard = false;
                       } else if (_showGestureHelp) {
                         _showGestureHelp = false;
                       } else {
@@ -520,6 +535,11 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                                   onPressed: openKeyboard),
                               IconButton(
                                 color: Colors.white,
+                                icon: Icon(Icons.grid_on),
+                                onPressed: toggleNexaKeyboard,
+                              ),
+                              IconButton(
+                                color: Colors.white,
                                 icon: const Icon(Icons.build),
                                 onPressed: () => gFFI.dialogManager
                                     .toggleMobileActionsOverlay(ffi: gFFI),
@@ -530,6 +550,11 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                                   color: Colors.white,
                                   icon: Icon(Icons.keyboard),
                                   onPressed: openKeyboard),
+                              IconButton(
+                                color: Colors.white,
+                                icon: Icon(Icons.grid_on),
+                                onPressed: toggleNexaKeyboard,
+                              ),
                               IconButton(
                                 color: Colors.white,
                                 icon: Icon(gFFI.ffiModel.touchMode
@@ -635,6 +660,11 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
           ];
           if (showCursorPaint) {
             paints.add(CursorPaint(widget.id));
+          }
+          if (_showNexaKeyboard) {
+            paints.add(NexaCompactKeyboard(
+              onClose: () => setState(() => _showNexaKeyboard = false),
+            ));
           }
           if (gFFI.ffiModel.touchMode) {
             paints.add(FloatingMouse(
@@ -1068,6 +1098,167 @@ class _KeyHelpToolsState extends State<KeyHelpTools> {
               (_fn ? fn : []) +
               (_more ? more : []),
         ));
+  }
+}
+
+class NexaCompactKeyboard extends StatefulWidget {
+  final VoidCallback onClose;
+
+  const NexaCompactKeyboard({Key? key, required this.onClose})
+      : super(key: key);
+
+  @override
+  State<NexaCompactKeyboard> createState() => _NexaCompactKeyboardState();
+}
+
+class _NexaCompactKeyboardState extends State<NexaCompactKeyboard> {
+  bool _shift = false;
+  bool _symbols = false;
+
+  InputModel get inputModel => gFFI.inputModel;
+
+  void _sendText(String text) {
+    if (text.isEmpty) return;
+    bind.sessionInputString(sessionId: gFFI.sessionId, value: text);
+    if (_shift && text.length == 1) {
+      setState(() => _shift = false);
+    }
+  }
+
+  void _sendKey(String key) {
+    inputModel.inputKey(key);
+  }
+
+  Widget _key(String label,
+      {String? text,
+      String? keyName,
+      int flex = 1,
+      bool active = false,
+      VoidCallback? onPressed}) {
+    return Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: SizedBox(
+          height: 38,
+          child: TextButton(
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: active ? MyTheme.accent80 : Colors.white,
+              foregroundColor: active ? Colors.white : Colors.black87,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5)),
+            ),
+            onPressed: onPressed ??
+                () {
+                  if (keyName != null) {
+                    _sendKey(keyName);
+                  } else {
+                    _sendText(text ?? label);
+                  }
+                },
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _row(List<Widget> children) {
+    return Row(
+        crossAxisAlignment: CrossAxisAlignment.center, children: children);
+  }
+
+  List<Widget> _letterKeys(String row) {
+    return row.split('').map((letter) {
+      final value = _shift ? letter.toUpperCase() : letter;
+      return _key(value, text: value);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    final letterRows = [
+      _row(_letterKeys('qwertyuiop')),
+      _row(<Widget>[const Spacer()] +
+          _letterKeys('asdfghjkl') +
+          <Widget>[const Spacer()]),
+      _row([
+        _key('Shift',
+            flex: 2,
+            active: _shift,
+            onPressed: () => setState(() => _shift = !_shift)),
+        ..._letterKeys('zxcvbnm'),
+        _key('Back', flex: 2, keyName: 'VK_BACK'),
+      ]),
+    ];
+    final symbolRows = [
+      _row('1234567890'.split('').map((c) => _key(c)).toList()),
+      _row(['-', '/', ':', ';', '(', ')', r'$', '&', '@', '"']
+          .map((c) => _key(c))
+          .toList()),
+      _row([
+        _key('ABC', flex: 2, onPressed: () => setState(() => _symbols = false)),
+        ...['.', ',', '?', '!', "'", '_', '\\'].map((c) => _key(c)),
+        _key('Back', flex: 2, keyName: 'VK_BACK'),
+      ]),
+    ];
+
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: SafeArea(
+        top: false,
+        child: Material(
+          color: Colors.black.withOpacity(0.82),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(6, 6, 6, bottom > 0 ? 6 : 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _row([
+                  _key(_symbols ? 'ABC' : '123',
+                      flex: 2,
+                      onPressed: () => setState(() => _symbols = !_symbols)),
+                  _key('Esc', keyName: 'VK_ESCAPE'),
+                  _key('Tab', keyName: 'VK_TAB'),
+                  _key('Left', keyName: 'VK_LEFT'),
+                  _key('Up', keyName: 'VK_UP'),
+                  _key('Down', keyName: 'VK_DOWN'),
+                  _key('Right', keyName: 'VK_RIGHT'),
+                  _key('X', onPressed: widget.onClose),
+                ]),
+                ...(_symbols ? symbolRows : letterRows),
+                _row([
+                  _key('Ctrl',
+                      active: inputModel.ctrl,
+                      onPressed: () =>
+                          setState(() => inputModel.ctrl = !inputModel.ctrl)),
+                  _key('Alt',
+                      active: inputModel.alt,
+                      onPressed: () =>
+                          setState(() => inputModel.alt = !inputModel.alt)),
+                  _key('Win',
+                      active: inputModel.command,
+                      onPressed: () => setState(
+                          () => inputModel.command = !inputModel.command)),
+                  _key('Space', flex: 4, keyName: 'VK_SPACE'),
+                  _key('Enter', flex: 2, keyName: 'VK_ENTER'),
+                ]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
