@@ -103,8 +103,8 @@ class _FileManagerPageState extends State<FileManagerPage> {
   }
 
   Future<void> pickAndSendPhotos() async {
-    final remoteDir = model.remoteController.directory.value;
-    if (remoteDir.path.isEmpty) {
+    final remoteReady = await ensureRemoteFolderReady();
+    if (!remoteReady) {
       showToast(translate('Remote folder is not ready'));
       return;
     }
@@ -135,6 +135,27 @@ class _FileManagerPageState extends State<FileManagerPage> {
     await model.localController
         .sendFiles(selected, model.remoteController.directoryData());
     showToast(translate('Transfer file'));
+  }
+
+  Future<bool> ensureRemoteFolderReady() async {
+    if (showLocal) {
+      setState(() => showLocal = false);
+      await Future.delayed(Duration(milliseconds: 250));
+    }
+
+    final remoteController = model.remoteController;
+    for (var i = 0; i < 6; i++) {
+      if (remoteController.directory.value.path.isNotEmpty) {
+        return true;
+      }
+      if (i == 0) {
+        remoteController.goToHomeDirectory();
+      } else {
+        await remoteController.refresh();
+      }
+      await Future.delayed(Duration(milliseconds: 500));
+    }
+    return remoteController.directory.value.path.isNotEmpty;
   }
 
   void closeFileTransfer() {
