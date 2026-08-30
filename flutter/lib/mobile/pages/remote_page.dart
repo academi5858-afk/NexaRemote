@@ -563,10 +563,6 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                       : gFFI.ffiModel.isPeerAndroid
                           ? [
                               IconButton(
-                                  color: Colors.white,
-                                  icon: Icon(Icons.keyboard),
-                                  onPressed: openKeyboard),
-                              IconButton(
                                 color: Colors.white,
                                 icon: Icon(Icons.grid_on),
                                 onPressed: toggleNexaKeyboard,
@@ -594,10 +590,6 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               )
                             ]
                           : [
-                              IconButton(
-                                  color: Colors.white,
-                                  icon: Icon(Icons.keyboard),
-                                  onPressed: openKeyboard),
                               IconButton(
                                 color: Colors.white,
                                 icon: Icon(Icons.grid_on),
