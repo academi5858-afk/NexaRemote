@@ -688,12 +688,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               ),
                               IconButton(
                                 color: Colors.white,
-                                icon: Icon(Icons.text_fields),
-                                onPressed: showSendTextDialog,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.content_copy),
+                                icon: Icon(Icons.edit_note),
                                 onPressed: showCopyPasteDialog,
                               ),
                               IconButton(
@@ -721,12 +716,7 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                               ),
                               IconButton(
                                 color: Colors.white,
-                                icon: Icon(Icons.text_fields),
-                                onPressed: showSendTextDialog,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.content_copy),
+                                icon: Icon(Icons.edit_note),
                                 onPressed: showCopyPasteDialog,
                               ),
                               IconButton(
