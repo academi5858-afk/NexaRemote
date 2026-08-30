@@ -551,131 +551,89 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
 
   Widget getBottomAppBar() {
     final ffiModel = Provider.of<FfiModel>(context);
-    return BottomAppBar(
-      elevation: 10,
-      color: MyTheme.accent,
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Row(
-              children: <Widget>[
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.clear),
-                      onPressed: () {
-                        clientClose(sessionId, gFFI);
-                      },
-                    ),
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.tv),
-                      onPressed: () {
-                        setState(() => _showEdit = false);
-                        showOptions(context, widget.id, gFFI.dialogManager);
-                      },
-                    )
-                  ] +
-                  (isWebDesktop || ffiModel.viewOnly || !ffiModel.keyboard
-                      ? []
-                      : gFFI.ffiModel.isPeerAndroid
-                          ? [
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.keyboard),
-                                onPressed: openKeyboard,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.text_fields),
-                                onPressed: showSendTextDialog,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.keyboard_return),
-                                onPressed: sendEnterKey,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.photo_library),
-                                onPressed: openFileTransfer,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: const Icon(Icons.build),
-                                onPressed: () => gFFI.dialogManager
-                                    .toggleMobileActionsOverlay(ffi: gFFI),
-                              )
-                            ]
-                          : [
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.keyboard),
-                                onPressed: openKeyboard,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.text_fields),
-                                onPressed: showSendTextDialog,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.keyboard_return),
-                                onPressed: sendEnterKey,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(Icons.photo_library),
-                                onPressed: openFileTransfer,
-                              ),
-                              IconButton(
-                                color: Colors.white,
-                                icon: Icon(gFFI.ffiModel.touchMode
-                                    ? Icons.touch_app
-                                    : Icons.mouse),
-                                onPressed: () => setState(
-                                    () => _showGestureHelp = !_showGestureHelp),
-                              ),
-                            ]) +
-                  (isWeb
-                      ? []
-                      : <Widget>[
-                          futureBuilder(
-                              future: gFFI.invokeMethod(
-                                  "get_value", "KEY_IS_SUPPORT_VOICE_CALL"),
-                              hasData: (isSupportVoiceCall) => IconButton(
-                                    color: Colors.white,
-                                    icon: isAndroid && isSupportVoiceCall
-                                        ? SvgPicture.asset('assets/chat.svg',
-                                            colorFilter: ColorFilter.mode(
-                                                Colors.white, BlendMode.srcIn))
-                                        : Icon(Icons.message),
-                                    onPressed: () =>
-                                        isAndroid && isSupportVoiceCall
-                                            ? showChatOptions(widget.id)
-                                            : onPressedTextChat(widget.id),
-                                  ))
-                        ]) +
-                  [
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.more_vert),
-                      onPressed: () {
-                        setState(() => _showEdit = false);
-                        showActions(widget.id);
-                      },
-                    ),
-                  ]),
-          Obx(() => IconButton(
-                color: Colors.white,
-                icon: Icon(Icons.expand_more),
-                onPressed: gFFI.ffiModel.waitForFirstImage.isTrue
-                    ? null
-                    : () {
-                        setState(() => _showBar = !_showBar);
-                      },
-              )),
-        ],
+    Widget menuItem(IconData icon, String label, String value) {
+      return PopupMenuItem(
+        value: value,
+        child: Row(children: [
+          Icon(icon, color: Theme.of(context).iconTheme.color),
+          SizedBox(width: 8),
+          Text(translate(label)),
+        ]),
+      );
+    }
+
+    Widget wheel(IconData icon, List<PopupMenuEntry<String>> items,
+        ValueChanged<String> onSelected) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Material(
+          color: MyTheme.accent,
+          shape: CircleBorder(),
+          elevation: 8,
+          child: PopupMenuButton<String>(
+            icon: Icon(icon, color: Colors.white),
+            itemBuilder: (_) => items,
+            onSelected: onSelected,
+          ),
+        ),
+      );
+    }
+
+    final canType = !isWebDesktop && !ffiModel.viewOnly && ffiModel.keyboard;
+
+    return SafeArea(
+      top: false,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            wheel(Icons.edit, [
+              if (canType)
+                menuItem(Icons.keyboard, 'Android keyboard', 'keyboard'),
+              if (canType)
+                menuItem(Icons.text_fields, 'Send text', 'send_text'),
+              if (canType) menuItem(Icons.keyboard_return, 'Enter', 'enter'),
+              if (canType)
+                menuItem(
+                    gFFI.ffiModel.touchMode ? Icons.touch_app : Icons.mouse,
+                    gFFI.ffiModel.touchMode ? 'Touch mode' : 'Mouse mode',
+                    'pointer'),
+              menuItem(Icons.tv, 'View options', 'view_options'),
+              menuItem(Icons.more_vert, 'More', 'more'),
+              menuItem(Icons.close, 'Disconnect', 'disconnect'),
+            ], (value) {
+              if (value == 'keyboard') {
+                openKeyboard();
+              } else if (value == 'send_text') {
+                showSendTextDialog();
+              } else if (value == 'enter') {
+                sendEnterKey();
+              } else if (value == 'pointer') {
+                setState(() => _showGestureHelp = !_showGestureHelp);
+              } else if (value == 'view_options') {
+                setState(() => _showEdit = false);
+                showOptions(context, widget.id, gFFI.dialogManager);
+              } else if (value == 'more') {
+                setState(() => _showEdit = false);
+                showActions(widget.id);
+              } else if (value == 'disconnect') {
+                clientClose(sessionId, gFFI);
+              }
+            }),
+            wheel(Icons.photo_library, [
+              menuItem(
+                  Icons.photo_library_outlined, 'Picture transfer', 'pictures'),
+              menuItem(Icons.expand_more, 'Hide buttons', 'hide'),
+            ], (value) {
+              if (value == 'pictures') {
+                openFileTransfer();
+              } else if (value == 'hide') {
+                setState(() => _showBar = false);
+              }
+            }),
+          ],
+        ),
       ),
     );
   }
