@@ -48,6 +48,7 @@ dependencies:
   qr_code_scanner: ^1.0.0
   zxing2: ^0.2.0
   image: ^4.0.17
+  image_picker: ^1.1.2
   back_button_interceptor: ^6.0.1
   flutter_rust_bridge: "1.80.1"
   window_manager:
